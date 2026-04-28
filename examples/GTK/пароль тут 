@@ -1,0 +1,187 @@
+  client_wrapper.h (заголовочный файл обёртки)
+
+ Функция  Описание 
+
+ client_set_log_callback()  Регистрирует функцию для вывода сообщений клиента в GUI 
+ client_set_log_entry_callback()  Регистрирует функцию для добавления записей журнала в GUI 
+ client_set_model_node_callback()  Регистрирует функцию для добавления узлов модели данных в GUI 
+ client_set_log_status_callback()  Регистрирует функцию для обновления статуса журнала в GUI 
+ client_set_log_ref_callback()  Регистрирует функцию для передачи найденной ссылки на журнал в GUI 
+ client_connect()  Устанавливает соединение с сервером IEC 61850 
+ client_disconnect()  Разрывает соединение с сервером 
+ client_refresh_model()  Запрашивает модель данных устройства (LD, LN, DO, DA) 
+ client_detect_logs()  Автоматически находит журналы в модели данных устройства 
+ client_enable_log()  Включает ведение журнала на сервере (LogEna = true) 
+ client_disable_log()  Выключает ведение журнала на сервере (LogEna = false) 
+ client_query_all_logs()  Запрашивает все записи из журнала 
+ client_query_logs_by_time()  Запрашивает записи журнала за указанный интервал времени 
+ client_query_logs_by_entry_id()  Запрашивает записи журнала в диапазоне EntryID 
+
+
+
+ client_wrapper.c (реализация обёртки)
+
+ Функция  Описание 
+
+ Callback registration 
+ client_set_log_callback()  Сохраняет указатель на функцию логирования GUI 
+ client_set_log_entry_callback()  Сохраняет указатель на функцию добавления записей журнала 
+ client_set_model_node_callback()  Сохраняет указатель на функцию добавления узлов модели 
+ client_set_log_status_callback()  Сохраняет указатель на функцию обновления статуса 
+ client_set_log_ref_callback()  Сохраняет указатель на функцию установки ссылки на журнал 
+ Вспомогательные 
+ client_log()  Форматирует и отправляет сообщение в GUI через callback 
+ format_timestamp()  Преобразует время из формата IEC 61850 в читаемый вид 
+ Модель данных 
+ browse_data_directory()  Рекурсивно обходит атрибуты данных (DA) и отправляет их в GUI 
+ model_thread_func()  Поток для обхода всей модели данных (LD → LN → DO → DA) 
+ client_refresh_model()  Запускает поток обхода модели данных 
+ Журналы 
+ client_detect_logs()  Обходит модель, ищет логи с именем EventLog/Log, формирует LogRef 
+ client_enable_log()  Отправляет команду включения журнала через запись LogEna 
+ client_disable_log()  Отправляет команду выключения журнала через запись LogEna 
+ client_query_all_logs()  Полный цикл запроса всех записей: включение → чтение LCB → цикл queryLogAfter → разбор каждой переменной 
+ client_query_logs_by_time()  Обёртка для фильтрации по времени (вызывает client_query_all_logs) 
+ client_query_logs_by_entry_id()  Обёртка для фильтрации по ID (вызывает client_query_all_logs) 
+ Подключение 
+ client_thread_func()  Фоновый поток: подключение, автоопределение журналов, поддержание соединения 
+ client_connect()  Запускает поток подключения 
+ client_disconnect()  Останавливает поток и закрывает соединение 
+
+
+
+ client_gui.h (заголовочный файл GUI)
+
+ Функция  Описание 
+
+ client_gui_create()  Создаёт и инициализирует структуру ClientGUI 
+ client_gui_log()  Добавляет сообщение в лог клиента (потокобезопасно) 
+ client_gui_add_log_entry()  Добавляет одну запись журнала в таблицу (потокобезопасно) 
+ client_gui_clear_logs()  Очищает таблицу журналов и массив сохранённых строк 
+ client_gui_add_model_node()  Добавляет узел в дерево модели данных (потокобезопасно) 
+ client_gui_clear_model()  Очищает дерево модели данных 
+ client_gui_update_logs_status()  Обновляет статус журнала в интерфейсе (потокобезопасно) 
+ client_gui_set_log_ref()  Устанавливает ссылку на журнал в поле ввода (потокобезопасно) 
+ client_gui_set_connected()  Обновляет состояние кнопок при подключении/отключении 
+ client_gui_apply_id_filter()  Фильтрует уже загруженные строки по диапазону EntryID 
+ client_gui_apply_time_filter()  Фильтрует уже загруженные строки по временному интервалу 
+ client_gui_reset_filter()  Отображает все сохранённые строки (сбрасывает фильтр) 
+
+
+
+  client_gui.c (реализация GUI)
+
+ Функция  Описание 
+
+ Idleобработчики (главный поток) 
+ gui_log_idle()  Вставляет сообщение в текстовое поле лога клиента и прокручивает вниз 
+ gui_add_log_entry_idle()  Добавляет строку (EntryID, время, тег, значение) в таблицу GtkListStore 
+ gui_add_model_node_idle()  Добавляет узел (имя, тип) в дерево GtkTreeStore 
+ gui_update_status_idle()  Обновляет текст статуса журнала в интерфейсе 
+ gui_set_log_ref_idle()  Устанавливает текст в поле ввода LogRef 
+ Потокобезопасные публичные функции 
+ client_gui_log()  Упаковывает сообщение в LogMessage и вызывает gui_log_idle через g_idle_add 
+ client_gui_add_log_entry()  Упаковывает запись в LogEntryMsg и вызывает gui_add_log_entry_idle 
+ client_gui_clear_logs()  Очищает GtkListStore и GPtrArray с сохранёнными строками 
+ client_gui_add_model_node()  Упаковывает узел в ModelNodeMsg и вызывает gui_add_model_node_idle 
+ client_gui_clear_model()  Очищает GtkTreeStore 
+ client_gui_update_logs_status()  Упаковывает статус в StatusMsg и вызывает gui_update_status_idle 
+ client_gui_set_log_ref()  Упаковывает ссылку в LogRefMsg и вызывает gui_set_log_ref_idle 
+ Фильтрация 
+ parse_timestamp()  Преобразует строку времени в time_t для сравнения (поддерживает несколько форматов) 
+ client_gui_apply_id_filter()  Проходит по сохранённым строкам, отображает только подходящие по EntryID 
+ client_gui_apply_time_filter()  Проходит по сохранённым строкам, отображает только подходящие по времени 
+ client_gui_reset_filter()  Отключает фильтр и отображает все сохранённые строки 
+ Инициализация 
+ client_gui_set_connected()  Включает/выключает чувствительность кнопок в зависимости от статуса 
+ client_gui_create()  Выделяет память под ClientGUI, инициализирует GPtrArray и поля фильтрации 
+
+
+
+ main.c (точка входа и виджеты)
+
+ Функция  Описание 
+
+ Основные 
+ main()  Создаёт GtkApplication, подключает сигнал activate, запускает главный цикл 
+ activate()  Строит всё окно: панель подключения, вкладки, таблицы, кнопки, подключает сигналы 
+ Обработчики нажатий кнопок 
+ on_connect_clicked()  Получает хост/порт, очищает логи, обновляет статус, вызывает client_connect() 
+ on_disconnect_clicked()  Вызывает client_disconnect(), обновляет статус 
+ on_refresh_model_clicked()  Очищает дерево модели, вызывает client_refresh_model() 
+ on_detect_logs_clicked()  Вызывает client_detect_logs() 
+ on_enable_log_clicked()  Берёт LogRef из поля, вызывает client_enable_log() 
+ on_disable_log_clicked()  Берёт LogRef из поля, вызывает client_disable_log() 
+ on_query_all_clicked()  Очищает таблицу, вызывает client_query_all_logs() и сбрасывает фильтр 
+ on_filter_by_time_clicked()  Получает интервал времени, вызывает client_gui_apply_time_filter() 
+ on_filter_by_id_clicked()  Получает диапазон ID, вызывает client_gui_apply_id_filter() 
+ on_reset_filter_clicked()  Вызывает client_gui_reset_filter() 
+ on_clear_client_log_clicked()  Очищает текстовое поле лога клиента 
+ on_window_destroy()  При закрытии окна отключается от сервера 
+ Обёртки для callback'ов (из client_wrapper в client_gui) 
+ wrapper_log_cb()  Вызывает client_gui_log() 
+ wrapper_log_entry_cb()  Вызывает client_gui_add_log_entry() 
+ wrapper_model_node_cb()  Вызывает client_gui_add_model_node() 
+ wrapper_log_status_cb()  Вызывает client_gui_update_logs_status() 
+ wrapper_log_ref_cb()  Вызывает client_gui_set_log_ref() 
+
+
+
+  Структура ClientGUI (хранилище виджетов и состояния)
+
+ Поле  Описание 
+
+ Виджеты вкладки журналов 
+ logs_tree  GtkTreeView для отображения таблицы журналов 
+ logs_store  GtkListStore с 4 колонками (EntryID, Время, Тег, Значение) 
+ log_ref_entry  Поле ввода для LogRef 
+ detect_logs_btn  Кнопка автоопределения журнала 
+ enable_log_btn  Кнопка включения журнала 
+ disable_log_btn  Кнопка выключения журнала 
+ query_all_btn  Кнопка запроса всех записей 
+ filter_by_time_btn  Кнопка фильтрации по времени 
+ filter_by_id_btn  Кнопка фильтрации по EntryID 
+ reset_filter_btn  Кнопка сброса фильтра 
+ start_time_entry  Поле ввода начала временного интервала 
+ end_time_entry  Поле ввода конца временного интервала 
+ start_id_spin  Счётчик начального EntryID 
+ end_id_spin  Счётчик конечного EntryID 
+ logs_status_label  Метка статуса журнала 
+ Виджеты вкладки модели 
+ model_tree  GtkTreeView для отображения модели данных 
+ model_store  GtkTreeStore для хранения иерархии модели 
+ refresh_model_btn  Кнопка запроса модели 
+ Виджеты вкладки лога клиента 
+ client_log_view  GtkTextView для отображения лога клиента 
+ client_log_buffer  GtkTextBuffer для хранения текста лога 
+ clear_client_log_btn  Кнопка очистки лога клиента 
+ Общие виджеты подключения 
+ host_entry  Поле ввода хоста сервера 
+ port_spin  Счётчик порта 
+ connect_btn  Кнопка подключения 
+ disconnect_btn  Кнопка отключения 
+ status_label  Метка статуса подключения 
+ Служебные поля для фильтрации 
+ log_rows  GPtrArray для хранения всех строк журнала (StoredRow) 
+ filter_active  Флаг активности фильтра 
+ filter_start_id  Начальное значение ID для фильтра 
+ filter_end_id  Конечное значение ID для фильтра 
+ filter_start_time  Начало временного интервала (time_t) 
+ filter_end_time  Конец временного интервала (time_t) 
+
+
+
+  Вспомогательные структуры
+
+ Структура  Назначение 
+
+ StoredRow  Хранит одну строку журнала (entryId, timestamp, tag, value) для фильтрации 
+ LogMessage  Передаёт сообщение из фонового потока в gui_log_idle 
+ LogEntryMsg  Передаёт запись журнала в gui_add_log_entry_idle 
+ ModelNodeMsg  Передаёт узел модели в gui_add_model_node_idle 
+ StatusMsg  Передаёт статус в gui_update_status_idle 
+ LogRefMsg  Передаёт ссылку на журнал в gui_set_log_ref_idle 
+
+
+
+
