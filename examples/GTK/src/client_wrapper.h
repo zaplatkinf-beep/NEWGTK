@@ -21,6 +21,8 @@ void client_set_model_node_callback(void (*callback)(void*, const char*, const c
 void client_set_log_status_callback(void (*callback)(const char*));
 void client_set_log_ref_callback(void (*callback)(const char*));
 void client_subscribe_reports(const char* rcbReference);
+void client_set_connection_status_callback(void (*callback)(bool connected));
+
 
 // Публичные функции
 int client_connect(const char* hostname, int port);

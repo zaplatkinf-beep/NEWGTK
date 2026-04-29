@@ -24,6 +24,14 @@ static void wrapper_log_entry_full_cb(LogEntryFullWrapper *entry);
 static void wrapper_model_node_cb(void *parent, const char *name, const char *type);
 static void wrapper_log_status_cb(const char *status);
 static void wrapper_log_ref_cb(const char *ref);
+static void connection_status_idle(gpointer data) {
+    bool connected = (bool)(intptr_t)data;
+    client_gui_set_connected(g_gui, connected);
+}
+
+static void connection_status_callback(bool connected) {
+    g_idle_add(connection_status_idle, (void*)(intptr_t)connected);
+}
 
 int main(int argc, char **argv) {
     GtkApplication *app = gtk_application_new("org.iec61850.client", G_APPLICATION_DEFAULT_FLAGS);
@@ -32,11 +40,17 @@ int main(int argc, char **argv) {
     g_object_unref(app);
     return status;
 }
-
+static void on_use_password_toggled(GtkCheckButton *check, ClientGUI *gui) {
+    gboolean active = gtk_check_button_get_active(check);
+    gtk_widget_set_sensitive(gui->password_entry, active);
+    if (!active) {
+        gtk_editable_set_text(GTK_EDITABLE(gui->password_entry), "");
+    }
+}
 static void activate(GtkApplication *app, gpointer user_data) {
     ClientGUI *gui = client_gui_create();
     g_gui = gui;
-
+client_set_connection_status_callback(connection_status_callback);
     client_set_log_callback(wrapper_log_cb);
     client_set_log_entry_full_callback(wrapper_log_entry_full_cb);
     client_set_model_node_callback(wrapper_model_node_cb);
@@ -70,10 +84,21 @@ static void activate(GtkApplication *app, gpointer user_data) {
     gtk_box_append(GTK_BOX(connect_box), password_label);
     gui->password_entry = gtk_entry_new();
     gtk_entry_set_visibility(GTK_ENTRY(gui->password_entry), FALSE);  // скрываем ввод
-    gtk_entry_set_placeholder_text(GTK_ENTRY(gui->password_entry), "пароль (если нужен)");
+    gtk_entry_set_placeholder_text(GTK_ENTRY(gui->password_entry), "Введите пароль");
     gtk_widget_set_size_request(gui->password_entry, 150, -1);
     gtk_box_append(GTK_BOX(connect_box), gui->password_entry);
+    
+    
 
+	gui->use_password_checkbox = gtk_check_button_new_with_label("Использовать пароль");
+	gtk_box_append(GTK_BOX(connect_box), gui->use_password_checkbox);
+
+
+	gtk_widget_set_sensitive(gui->password_entry, FALSE);
+
+
+	g_signal_connect(gui->use_password_checkbox, "toggled", G_CALLBACK(on_use_password_toggled), gui);
+    
     GtkWidget *port_label = gtk_label_new("Порт:");
     gtk_box_append(GTK_BOX(connect_box), port_label);
     gui->port_spin = gtk_spin_button_new_with_range(1, 65535, 1);
@@ -290,15 +315,17 @@ static void on_connect_clicked(GtkButton *btn, gpointer data) {
     const char *host = gtk_editable_get_text(GTK_EDITABLE(gui->host_entry));
     int port = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(gui->port_spin));
     const char *password = gtk_editable_get_text(GTK_EDITABLE(gui->password_entry));
-    
-    if (password && strlen(password) > 0)
-        client_set_password(password);
-    else
-        client_set_password(NULL);  // без пароля
+gboolean use_password = gtk_check_button_get_active(GTK_CHECK_BUTTON(gui->use_password_checkbox));
+
+	if (use_password && password && strlen(password) > 0) {
+	    client_set_password(password);
+	} else {
+	    client_set_password(NULL);
+	}
     
     client_gui_clear_logs(gui);
     client_gui_log(gui, "Подключение...");
-    client_gui_set_connected(gui, TRUE);
+
     client_connect(host, port);
 }
 

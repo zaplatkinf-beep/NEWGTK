@@ -282,6 +282,12 @@ void client_gui_set_connected(ClientGUI *gui, gboolean connected) {
     gtk_widget_set_sensitive(gui->filter_by_id_btn, connected);
     gtk_widget_set_sensitive(gui->reset_filter_btn, connected);
     gtk_label_set_text(GTK_LABEL(gui->status_label), connected ? "Статус: Подключен" : "Статус: Отключен");
+    
+        if (!connected) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(gui->use_password_checkbox), FALSE);
+        gtk_editable_set_text(GTK_EDITABLE(gui->password_entry), "");
+        gtk_widget_set_sensitive(gui->password_entry, FALSE);
+        }
 
 }
 

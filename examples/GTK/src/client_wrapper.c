@@ -1,7 +1,7 @@
 #define _GNU_SOURCE
 #include "client_wrapper.h"
 #include "iec61850_client.h"
-
+#include <glib.h>
 #ifndef REASON_DATA_CHANGE
 #define REASON_DATA_CHANGE        0x01
 #endif
@@ -47,6 +47,8 @@ static void (*g_model_node_callback)(void*, const char*, const char*) = NULL;
 static void (*g_log_status_callback)(const char*) = NULL;
 static void (*g_log_ref_callback)(const char*) = NULL;
 
+static void (*g_connection_status_callback)(bool) = NULL;
+
 /* Установка пароля для аутентификации  */
 void client_set_password(const char* password);
 
@@ -55,9 +57,13 @@ void client_set_log_callback(void (*callback)(const char*)) { g_log_callback = c
 void client_set_log_entry_full_callback(void (*callback)(LogEntryFullWrapper*)) {
     g_log_entry_full_callback = callback;
 }
+
 void client_set_model_node_callback(void (*callback)(void*, const char*, const char*)) { g_model_node_callback = callback; }
 void client_set_log_status_callback(void (*callback)(const char*)) { g_log_status_callback = callback; }
 void client_set_log_ref_callback(void (*callback)(const char*)) { g_log_ref_callback = callback; }
+void client_set_connection_status_callback(void (*callback)(bool connected)) {
+    g_connection_status_callback = callback;
+}
 
 // Вспомогательная функция логирования
 static void client_log(const char* format, ...) {
@@ -622,7 +628,9 @@ static void* client_thread_func(void* arg) {
     IedClientError error;
     g_con = IedConnection_create();
     client_log("Подключение к %s:%d...", host, port);
-    
+        if (g_connection_status_callback) {
+g_connection_status_callback(true); 
+    }
     if (g_password[0] != '\0') {
     MmsConnection mmsConnection = IedConnection_getMmsConnection(g_con);
     IsoConnectionParameters parameters = MmsConnection_getIsoConnectionParameters(mmsConnection);
@@ -631,25 +639,34 @@ static void* client_thread_func(void* arg) {
     AcseAuthenticationParameter_setPassword(auth, g_password);
     IsoConnectionParameters_setAcseAuthenticationParameter(parameters, auth);
 }
-    
+    printf("DEBUG: Sending password: '%s'\n", g_password);
     IedConnection_connect(g_con, &error, host, port);
     if (error != IED_ERROR_OK) {
         client_log("Ошибка подключения: %d", error);
         IedConnection_destroy(g_con);
         g_con = NULL;
         g_running = 0;
+            if (g_connection_status_callback) {
+g_connection_status_callback(true); 
+    }
         return NULL;
     }
     client_log("Подключено к %s:%d", host, port);
     client_detect_logs();
-    while (g_running) {
+        while (g_running) {
         Thread_sleep(1000);
     }
     client_log("Отключение...");
+    
+
+    if (g_connection_status_callback && g_con && IedConnection_getState(g_con) == IED_STATE_CONNECTED) {
+g_connection_status_callback(true); 
+    }
+    
     IedConnection_close(g_con);
     IedConnection_destroy(g_con);
     g_con = NULL;
-    // Освобождаем ресурсы аутентификации
+
     if (g_auth) {
         AcseAuthenticationParameter_destroy(g_auth);
         g_auth = NULL;

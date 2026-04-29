@@ -45,7 +45,8 @@ typedef struct {
     GtkWidget *client_log_view;
     GtkTextBuffer *client_log_buffer;
     GtkWidget *clear_client_log_btn;
-    GtkWidget *password_entry;   // поле ввода пароля
+    GtkWidget *use_password_checkbox;  	
+    GtkWidget *password_entry;          //pas
     // Общее
     GtkWidget *host_entry;
     GtkWidget *port_spin;
